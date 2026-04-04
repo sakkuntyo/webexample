@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HTML 一覧</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 24px;
+      line-height: 1.5;
+    }
+    h1 {
+      margin-bottom: 16px;
+    }
+    .status {
+      margin-bottom: 16px;
+      color: #555;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 900px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f5f5f5;
+    }
+    a {
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>HTML ファイル一覧</h1>
+  <div id="status" class="status">読み込み中...</div>
+
+  <table id="fileTable" class="hidden">
+    <thead>
+      <tr>
+        <th>ファイル名</th>
+        <th>リンク</th>
+      </tr>
+    </thead>
+    <tbody id="fileTableBody"></tbody>
+  </table>
+
+  <script>
+    async function loadHtmlFiles() {
+      const status = document.getElementById("status");
+      const table = document.getElementById("fileTable");
+      const tbody = document.getElementById("fileTableBody");
+
+      const owner = "sakkuntyo";
+      const repo = "webexample";
+      const branch = "gh-pages";
+      const path = ""; // ルートを読む
+
+      const apiUrl =
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+
+      try {
+        const res = await fetch(apiUrl, {
+          headers: {
+            "Accept": "application/vnd.github+json"
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
+        }
+
+        const items = await res.json();
+
+        const htmlFiles = items
+          .filter(item =>
+            item.type === "file" &&
+            item.name.toLowerCase().endsWith(".html") &&
+            item.name.toLowerCase() !== "index.html"
+          )
+          .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+        tbody.innerHTML = "";
+
+        if (htmlFiles.length === 0) {
+          status.textContent = "HTML ファイルが見つかりませんでした。";
+          return;
+        }
+
+        for (const file of htmlFiles) {
+          const tr = document.createElement("tr");
+
+          const nameTd = document.createElement("td");
+          nameTd.textContent = file.name;
+
+          const linkTd = document.createElement("td");
+          const a = document.createElement("a");
+
+          // GitHub Pages 上の相対リンク
+          a.href = encodeURI(file.name);
+          a.textContent = "開く";
+
+          linkTd.appendChild(a);
+          tr.appendChild(nameTd);
+          tr.appendChild(linkTd);
+          tbody.appendChild(tr);
+        }
+
+        status.textContent = `${htmlFiles.length} 件見つかりました。`;
+        table.classList.remove("hidden");
+      } catch (err) {
+        console.error(err);
+        status.textContent = "読み込みに失敗しました: " + err.message;
+      }
+    }
+
+    loadHtmlFiles();
+  </script>
+</body>
+</html>
