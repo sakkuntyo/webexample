@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebLLM Chat Sample</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #111;
+      color: #eee;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    #topbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    #status {
+      white-space: pre-wrap;
+      font-size: 14px;
+      color: #bdbdbd;
+    }
+    #chat {
+      border: 1px solid #333;
+      background: #181818;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 360px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-bottom: 12px;
+    }
+    .msg {
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .role {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .user .role {
+      color: #7cc4ff;
+    }
+    .assistant .role {
+      color: #9cff9c;
+    }
+    .system .role {
+      color: #ffcf70;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 90px;
+      resize: vertical;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #1d1d1d;
+      color: #eee;
+      margin-bottom: 8px;
+    }
+    button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #2a2a2a;
+      color: #eee;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="topbar">
+      <button id="loadBtn">Load model</button>
+      <button id="clearBtn">Clear chat</button>
+      <div id="status">未ロード</div>
+    </div>
+
+    <div id="chat"></div>
+
+    <textarea id="prompt">質問を入力してください</textarea>
+    <button id="sendBtn" disabled>Send</button>
+  </div>
+
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+    // まずは docs に載っている公式サンプルのモデル名を使用
+    // 重いので、動いたあとで prebuiltAppConfig.model_list から別モデルに変えるのがおすすめ
+    const MODEL = "Llama-3.1-8B-Instruct";
+
+    const statusEl = document.getElementById("status");
+    const chatEl = document.getElementById("chat");
+    const promptEl = document.getElementById("prompt");
+    const loadBtn = document.getElementById("loadBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    let engine = null;
+    let busy = false;
+
+    const messages = [
+      {
+        role: "system",
+        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。必要なら箇条書きで整理してください。"
+      }
+    ];
+
+    function renderChat() {
+      chatEl.innerHTML = "";
+      for (const m of messages) {
+        if (m.role === "system") continue;
+        const box = document.createElement("div");
+        box.className = `msg ${m.role}`;
+
+        const role = document.createElement("div");
+        role.className = "role";
+        role.textContent = m.role === "user" ? "You" : "Assistant";
+
+        const body = document.createElement("div");
+        body.textContent = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+
+        box.appendChild(role);
+        box.appendChild(body);
+        chatEl.appendChild(box);
+      }
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function setBusy(v) {
+      busy = v;
+      loadBtn.disabled = v;
+      sendBtn.disabled = v || !engine;
+      clearBtn.disabled = v;
+    }
+
+    async function loadModel() {
+      setBusy(true);
+      statusEl.textContent = "モデル読込中...";
+
+      try {
+        engine = await webllm.CreateMLCEngine(MODEL, {
+          initProgressCallback: (progress) => {
+            // progress.text があればそれを優先
+            const text = progress?.text ?? "";
+            const pct = typeof progress?.progress === "number"
+              ? ` ${Math.round(progress.progress * 100)}%`
+              : "";
+            statusEl.textContent = `モデル読込中... ${text}${pct}`;
+          },
+        });
+
+        statusEl.textContent = `ロード完了: ${MODEL}`;
+        sendBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "ロード失敗: " + (err?.message || String(err));
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function sendMessage() {
+      if (!engine || busy) return;
+
+      const text = promptEl.value.trim();
+      if (!text) return;
+
+      messages.push({ role: "user", content: text });
+      messages.push({ role: "assistant", content: "" });
+      renderChat();
+      promptEl.value = "";
+      setBusy(true);
+      statusEl.textContent = "生成中...";
+
+      try {
+        const stream = await engine.chat.completions.create({
+          messages,
+          temperature: 0.7,
+          stream: true,
+          stream_options: { include_usage: true },
+        });
+
+        let reply = "";
+        for await (const chunk of stream) {
+          const delta = chunk.choices?.[0]?.delta?.content ?? "";
+          if (delta) {
+            reply += delta;
+            messages[messages.length - 1].content = reply;
+            renderChat();
+          }
+          if (chunk.usage) {
+            statusEl.textContent =
+              `完了: prompt_tokens=${chunk.usage.prompt_tokens}, completion_tokens=${chunk.usage.completion_tokens}`;
+          }
+        }
+
+        if (!reply) {
+          // 念のため最終メッセージ取得
+          const fullReply = await engine.getMessage();
+          messages[messages.length - 1].content = fullReply || "(空の応答)";
+          renderChat();
+        }
+      } catch (err) {
+        console.error(err);
+        messages[messages.length - 1].content =
+          "エラー: " + (err?.message || String(err));
+        renderChat();
+        statusEl.textContent = "生成失敗";
+      } finally {
+        setBusy(false);
+        statusEl.textContent = engine ? `待機中: ${MODEL}` : "未ロード";
+      }
+    }
+
+    loadBtn.addEventListener("click", loadModel);
+    sendBtn.addEventListener("click", sendMessage);
+    clearBtn.addEventListener("click", () => {
+      messages.length = 0;
+      messages.push({
+        role: "system",
+        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。必要なら箇条書きで整理してください。"
+      });
+      renderChat();
+      statusEl.textContent = engine ? `待機中: ${MODEL}` : "未ロード";
+    });
+
+    promptEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        sendMessage();
+      }
+    });
+
+    renderChat();
+
+    console.log("Supported models:", webllm.prebuiltAppConfig.model_list.map(x => x.model_id));
+  </script>
+</body>
+</html>
