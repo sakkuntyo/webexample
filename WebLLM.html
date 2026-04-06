@@ -191,7 +191,6 @@
         });
 
         statusEl.textContent = `待機中: ${model}`;
-        sendBtn.disabled = false;
       } catch (err) {
         console.error(err);
         statusEl.textContent = "ロード失敗: " + (err?.message || String(err));
@@ -212,40 +211,46 @@
       setBusy(true);
       statusEl.textContent = "生成中...";
 
+      let assistantIndex = -1;
+
       try {
-        let reply = "";
+        const requestMessages = [...messages];
 
         const stream = await engine.chat.completions.create({
-          messages,
+          messages: requestMessages,
           temperature: 0.7,
           stream: true,
         });
 
         messages.push({ role: "assistant", content: "" });
+        assistantIndex = messages.length - 1;
         renderChat();
+
+        let reply = "";
 
         for await (const chunk of stream) {
           const delta = chunk.choices?.[0]?.delta?.content ?? "";
           if (delta) {
             reply += delta;
-            messages[messages.length - 1].content = reply;
+            messages[assistantIndex].content = reply;
             renderChat();
           }
         }
 
         if (!reply) {
           const fullReply = await engine.getMessage();
-          messages[messages.length - 1].content = fullReply || "(空の応答)";
+          messages[assistantIndex].content = fullReply || "(空の応答)";
           renderChat();
         }
       } catch (err) {
         console.error(err);
 
-        if (messages[messages.length - 1]?.role !== "assistant") {
+        if (assistantIndex === -1) {
           messages.push({ role: "assistant", content: "" });
+          assistantIndex = messages.length - 1;
         }
 
-        messages[messages.length - 1].content =
+        messages[assistantIndex].content =
           "エラー: " + (err?.message || String(err));
         renderChat();
         statusEl.textContent = "生成失敗";
