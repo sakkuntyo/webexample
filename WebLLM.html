@@ -5,30 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WebLLM Chat Sample</title>
   <style>
-    body { font-family: sans-serif; margin: 0; background: #111; color: #eee; }
-    .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
-    #topbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-    #status { white-space: pre-wrap; font-size: 14px; color: #bdbdbd; }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #111;
+      color: #eee;
+    }
+    .wrap {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    #topbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    #status {
+      white-space: pre-wrap;
+      font-size: 14px;
+      color: #ddd;
+    }
     #chat {
-      border: 1px solid #333; background: #181818; border-radius: 8px;
-      padding: 12px; min-height: 360px; white-space: pre-wrap;
-      overflow-wrap: anywhere; margin-bottom: 12px;
+      border: 1px solid #666;
+      background: #151a1d;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 360px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      margin-bottom: 14px;
     }
-    .msg { margin-bottom: 14px; line-height: 1.5; }
-    .role { font-weight: 700; margin-bottom: 4px; }
-    .user .role { color: #7cc4ff; }
-    .assistant .role { color: #9cff9c; }
+    .msg {
+      margin-bottom: 18px;
+      line-height: 1.6;
+    }
+    .role {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .user .role {
+      color: #6fd3ff;
+    }
+    .assistant .role {
+      color: #98ff98;
+    }
     textarea, select {
-      width: 100%; box-sizing: border-box; padding: 10px;
-      border-radius: 8px; border: 1px solid #444; background: #1d1d1d; color: #eee;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #666;
+      background: #1b2024;
+      color: #eee;
+      padding: 10px;
+      font-size: 16px;
     }
-    textarea { min-height: 90px; resize: vertical; margin-bottom: 8px; }
-    select { width: auto; min-width: 320px; }
+    select {
+      min-width: 340px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 92px;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
     button {
-      padding: 8px 12px; border-radius: 8px; border: 1px solid #555;
-      background: #2a2a2a; color: #eee; cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #777;
+      background: #222;
+      color: #fff;
+      cursor: pointer;
+      font-size: 15px;
     }
-    button:disabled { opacity: 0.6; cursor: default; }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
   </style>
 </head>
 <body>
@@ -81,17 +135,19 @@
       modelSelect.appendChild(opt);
     }
 
+    const systemPrompt =
+      "あなたは日本語で答える、簡潔で正確なアシスタントです。分からないことは分からないと述べてください。";
+
     const messages = [
-      {
-        role: "system",
-        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。分からないことは分からないと述べてください。"
-      }
+      { role: "system", content: systemPrompt }
     ];
 
     function renderChat() {
       chatEl.innerHTML = "";
+
       for (const m of messages) {
         if (m.role === "system") continue;
+
         const box = document.createElement("div");
         box.className = `msg ${m.role}`;
 
@@ -106,15 +162,16 @@
         box.appendChild(body);
         chatEl.appendChild(box);
       }
+
       chatEl.scrollTop = chatEl.scrollHeight;
     }
 
     function setBusy(v) {
       busy = v;
       loadBtn.disabled = v;
-      sendBtn.disabled = v || !engine;
       clearBtn.disabled = v;
       modelSelect.disabled = v;
+      sendBtn.disabled = v || !engine;
     }
 
     async function loadModel() {
@@ -133,7 +190,7 @@
           },
         });
 
-        statusEl.textContent = `ロード完了: ${model}`;
+        statusEl.textContent = `待機中: ${model}`;
         sendBtn.disabled = false;
       } catch (err) {
         console.error(err);
@@ -150,20 +207,23 @@
       if (!text) return;
 
       messages.push({ role: "user", content: text });
-      messages.push({ role: "assistant", content: "" });
       renderChat();
       promptEl.value = "";
       setBusy(true);
       statusEl.textContent = "生成中...";
 
       try {
+        let reply = "";
+
         const stream = await engine.chat.completions.create({
           messages,
           temperature: 0.7,
           stream: true,
         });
 
-        let reply = "";
+        messages.push({ role: "assistant", content: "" });
+        renderChat();
+
         for await (const chunk of stream) {
           const delta = chunk.choices?.[0]?.delta?.content ?? "";
           if (delta) {
@@ -180,6 +240,11 @@
         }
       } catch (err) {
         console.error(err);
+
+        if (messages[messages.length - 1]?.role !== "assistant") {
+          messages.push({ role: "assistant", content: "" });
+        }
+
         messages[messages.length - 1].content =
           "エラー: " + (err?.message || String(err));
         renderChat();
@@ -192,18 +257,17 @@
 
     loadBtn.addEventListener("click", loadModel);
     sendBtn.addEventListener("click", sendMessage);
+
     clearBtn.addEventListener("click", () => {
       messages.length = 0;
-      messages.push({
-        role: "system",
-        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。分からないことは分からないと述べてください。"
-      });
+      messages.push({ role: "system", content: systemPrompt });
       renderChat();
       statusEl.textContent = engine ? `待機中: ${modelSelect.value}` : "未ロード";
     });
 
     promptEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
         sendMessage();
       }
     });
