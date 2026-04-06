@@ -5,85 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WebLLM Chat Sample</title>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      background: #111;
-      color: #eee;
-    }
-    .wrap {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-    #topbar {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    #status {
-      white-space: pre-wrap;
-      font-size: 14px;
-      color: #bdbdbd;
-    }
+    body { font-family: sans-serif; margin: 0; background: #111; color: #eee; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+    #topbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    #status { white-space: pre-wrap; font-size: 14px; color: #bdbdbd; }
     #chat {
-      border: 1px solid #333;
-      background: #181818;
-      border-radius: 8px;
-      padding: 12px;
-      min-height: 360px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      margin-bottom: 12px;
+      border: 1px solid #333; background: #181818; border-radius: 8px;
+      padding: 12px; min-height: 360px; white-space: pre-wrap;
+      overflow-wrap: anywhere; margin-bottom: 12px;
     }
-    .msg {
-      margin-bottom: 14px;
-      line-height: 1.5;
+    .msg { margin-bottom: 14px; line-height: 1.5; }
+    .role { font-weight: 700; margin-bottom: 4px; }
+    .user .role { color: #7cc4ff; }
+    .assistant .role { color: #9cff9c; }
+    textarea, select {
+      width: 100%; box-sizing: border-box; padding: 10px;
+      border-radius: 8px; border: 1px solid #444; background: #1d1d1d; color: #eee;
     }
-    .role {
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .user .role {
-      color: #7cc4ff;
-    }
-    .assistant .role {
-      color: #9cff9c;
-    }
-    .system .role {
-      color: #ffcf70;
-    }
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      min-height: 90px;
-      resize: vertical;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #444;
-      background: #1d1d1d;
-      color: #eee;
-      margin-bottom: 8px;
-    }
+    textarea { min-height: 90px; resize: vertical; margin-bottom: 8px; }
+    select { width: auto; min-width: 320px; }
     button {
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid #555;
-      background: #2a2a2a;
-      color: #eee;
-      cursor: pointer;
+      padding: 8px 12px; border-radius: 8px; border: 1px solid #555;
+      background: #2a2a2a; color: #eee; cursor: pointer;
     }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
+    button:disabled { opacity: 0.6; cursor: default; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div id="topbar">
+      <select id="modelSelect"></select>
       <button id="loadBtn">Load model</button>
       <button id="clearBtn">Clear chat</button>
       <div id="status">未ロード</div>
@@ -91,17 +42,21 @@
 
     <div id="chat"></div>
 
-    <textarea id="prompt">質問を入力してください</textarea>
+    <textarea id="prompt" placeholder="ここにメッセージを入力"></textarea>
     <button id="sendBtn" disabled>Send</button>
   </div>
 
   <script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-    // まずは docs に載っている公式サンプルのモデル名を使用
-    // 重いので、動いたあとで prebuiltAppConfig.model_list から別モデルに変えるのがおすすめ
-    const MODEL = "Hermes-3-Llama-3.1-8B-q4f16_1-MLC";
+    const preferredModels = [
+      "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+      "Phi-3.5-mini-instruct-q4f16_1-MLC",
+      "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+      "SmolLM2-1.7B-Instruct-q4f16_1-MLC"
+    ];
 
+    const modelSelect = document.getElementById("modelSelect");
     const statusEl = document.getElementById("status");
     const chatEl = document.getElementById("chat");
     const promptEl = document.getElementById("prompt");
@@ -112,10 +67,24 @@
     let engine = null;
     let busy = false;
 
+    const availableModels = webllm.prebuiltAppConfig.model_list.map(x => x.model_id);
+
+    const modelsToShow = preferredModels.filter(x => availableModels.includes(x));
+    if (modelsToShow.length === 0) {
+      modelsToShow.push(...availableModels.slice(0, 10));
+    }
+
+    for (const model of modelsToShow) {
+      const opt = document.createElement("option");
+      opt.value = model;
+      opt.textContent = model;
+      modelSelect.appendChild(opt);
+    }
+
     const messages = [
       {
         role: "system",
-        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。必要なら箇条書きで整理してください。"
+        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。分からないことは分からないと述べてください。"
       }
     ];
 
@@ -131,7 +100,7 @@
         role.textContent = m.role === "user" ? "You" : "Assistant";
 
         const body = document.createElement("div");
-        body.textContent = typeof m.content === "string" ? m.content : JSON.stringify(m.content);
+        body.textContent = m.content;
 
         box.appendChild(role);
         box.appendChild(body);
@@ -145,16 +114,17 @@
       loadBtn.disabled = v;
       sendBtn.disabled = v || !engine;
       clearBtn.disabled = v;
+      modelSelect.disabled = v;
     }
 
     async function loadModel() {
+      const model = modelSelect.value;
       setBusy(true);
-      statusEl.textContent = "モデル読込中...";
+      statusEl.textContent = `モデル読込中... ${model}`;
 
       try {
-        engine = await webllm.CreateMLCEngine(MODEL, {
+        engine = await webllm.CreateMLCEngine(model, {
           initProgressCallback: (progress) => {
-            // progress.text があればそれを優先
             const text = progress?.text ?? "";
             const pct = typeof progress?.progress === "number"
               ? ` ${Math.round(progress.progress * 100)}%`
@@ -163,7 +133,7 @@
           },
         });
 
-        statusEl.textContent = `ロード完了: ${MODEL}`;
+        statusEl.textContent = `ロード完了: ${model}`;
         sendBtn.disabled = false;
       } catch (err) {
         console.error(err);
@@ -191,7 +161,6 @@
           messages,
           temperature: 0.7,
           stream: true,
-          stream_options: { include_usage: true },
         });
 
         let reply = "";
@@ -202,14 +171,9 @@
             messages[messages.length - 1].content = reply;
             renderChat();
           }
-          if (chunk.usage) {
-            statusEl.textContent =
-              `完了: prompt_tokens=${chunk.usage.prompt_tokens}, completion_tokens=${chunk.usage.completion_tokens}`;
-          }
         }
 
         if (!reply) {
-          // 念のため最終メッセージ取得
           const fullReply = await engine.getMessage();
           messages[messages.length - 1].content = fullReply || "(空の応答)";
           renderChat();
@@ -222,7 +186,7 @@
         statusEl.textContent = "生成失敗";
       } finally {
         setBusy(false);
-        statusEl.textContent = engine ? `待機中: ${MODEL}` : "未ロード";
+        statusEl.textContent = engine ? `待機中: ${modelSelect.value}` : "未ロード";
       }
     }
 
@@ -232,10 +196,10 @@
       messages.length = 0;
       messages.push({
         role: "system",
-        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。必要なら箇条書きで整理してください。"
+        content: "あなたは日本語で答える、簡潔で正確なアシスタントです。分からないことは分からないと述べてください。"
       });
       renderChat();
-      statusEl.textContent = engine ? `待機中: ${MODEL}` : "未ロード";
+      statusEl.textContent = engine ? `待機中: ${modelSelect.value}` : "未ロード";
     });
 
     promptEl.addEventListener("keydown", (e) => {
@@ -245,8 +209,7 @@
     });
 
     renderChat();
-
-    console.log("Supported models:", webllm.prebuiltAppConfig.model_list.map(x => x.model_id));
+    console.log("Available models:", availableModels);
   </script>
 </body>
 </html>
