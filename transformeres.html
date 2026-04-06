@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <body>
+    <textarea id="prompt" rows="6" cols="60">Hello! Please introduce yourself briefly.</textarea>
+    <br>
+    <button id="run">Run</button>
+    <pre id="out"></pre>
+
+    <script type="module">
+      import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1";
+
+      const out = document.getElementById("out");
+      let generator;
+
+      document.getElementById("run").onclick = async () => {
+        out.textContent = "loading model...";
+        if (!generator) {
+          generator = await pipeline(
+            "text-generation",
+            "onnx-community/SmolLM2-360M-Instruct",
+            { device: "webgpu" } // 動かなければ "cpu" に変更
+          );
+        }
+        out.textContent = "running...";
+        const result = await generator(document.getElementById("prompt").value, {
+          max_new_tokens: 80,
+        });
+        out.textContent = JSON.stringify(result, null, 2);
+      };
+    </script>
+  </body>
+</html>
