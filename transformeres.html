@@ -1,33 +1,40 @@
 <!doctype html>
 <html>
   <body>
-    <textarea id="prompt" rows="6" cols="60">hi</textarea>
+    <textarea id="prompt" rows="4" cols="60">こんにちは。自己紹介してください。</textarea>
     <br>
-    <button id="run">Run</button>
+    <button id="run">Send</button>
     <pre id="out"></pre>
 
     <script type="module">
-      import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1";
+      import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0";
 
       const out = document.getElementById("out");
       let generator;
 
+      const messages = [
+        { role: "system", content: "You are a concise and helpful assistant." },
+      ];
+
       document.getElementById("run").onclick = async () => {
         try {
-          out.textContent = "loading model...";
           if (!generator) {
+            out.textContent = "loading model...";
             generator = await pipeline(
               "text-generation",
-              "HuggingFaceTB/SmolLM2-360M-Instruct",
-              {
-                device: "wasm"
-              }
+              "onnx-community/Qwen2.5-0.5B-Instruct",
+              { device: "wasm" }
             );
           }
 
+          const userText = document.getElementById("prompt").value;
+          messages.push({ role: "user", content: userText });
+
           out.textContent = "running...";
-          const result = await generator(document.getElementById("prompt").value, {
-            max_new_tokens: 40,
+
+          const result = await generator(messages, {
+            max_new_tokens: 120,
+            do_sample: false,
           });
 
           out.textContent = JSON.stringify(result, null, 2);
