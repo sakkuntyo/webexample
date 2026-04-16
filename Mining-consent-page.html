@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>マイニング利用の同意</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1020;
+      --card: #151b2f;
+      --text: #edf2ff;
+      --muted: #b8c0d9;
+      --accent: #7aa2ff;
+      --danger: #ff8f8f;
+      --ok: #8fe3a1;
+      --border: rgba(255,255,255,0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: linear-gradient(180deg, #0b1020 0%, #111831 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 16px 56px;
+    }
+
+    .hero {
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      line-height: 1.2;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: rgba(21, 27, 47, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      backdrop-filter: blur(8px);
+    }
+
+    .notice {
+      border-left: 4px solid var(--danger);
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 1.2rem;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.2rem;
+      line-height: 1.8;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin: 18px 0 0;
+    }
+
+    .mini {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .mini strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #081224;
+    }
+
+    .secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .status {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      line-height: 1.7;
+    }
+
+    .status strong {
+      color: var(--ok);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(122, 162, 255, 0.15);
+      color: #cfe0ff;
+      font-size: 0.85rem;
+      border: 1px solid rgba(122, 162, 255, 0.35);
+    }
+
+    .site {
+      margin-top: 26px;
+      display: none;
+    }
+
+    .site.visible {
+      display: block;
+    }
+
+    .site-content {
+      margin-top: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .danger {
+      background: #3a1820;
+      color: #ffd6dc;
+      border: 1px solid rgba(255, 143, 143, 0.3);
+    }
+
+    a {
+      color: #bdd1ff;
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding-top: 20px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="topbar">
+        <span class="badge">同意が必要です</span>
+        <span class="muted" id="sessionState">状態: 未同意</span>
+      </div>
+      <h1>このサイトの利用に関するご案内</h1>
+      <p>
+        このサイトでは、広告の代替手段として、利用者が同意した場合に限り、
+        ページ表示中の端末の計算資源の一部を用いて暗号資産マイニングを行う想定です。
+        下記の内容をご確認のうえ、利用するかどうかを選択してください。
+      </p>
+    </section>
+
+    <section class="card notice" aria-labelledby="notice-title">
+      <h2 id="notice-title">重要な説明</h2>
+      <ul>
+        <li>このサイトを利用するために、<strong>暗号資産マイニングへの同意が必要</strong>です。</li>
+        <li>マイニングは、<strong>あなたがこのページを開いている間のみ</strong>行う想定です。</li>
+        <li>マイニングの利益は、<strong>サイト運営者の収益</strong>になります。</li>
+        <li>マイニングにより、<strong>CPU 使用率の上昇、発熱、電力消費、バッテリー消費の増加</strong>が発生する場合があります。</li>
+        <li>想定される計算資源の利用上限は、<strong>CPU 最大 20%</strong>です。</li>
+        <li><strong>同意しない場合はマイニングは開始されません。</strong></li>
+        <li>同意後であっても、<strong>いつでも停止</strong>できます。</li>
+      </ul>
+
+      <div class="grid" aria-label="補足説明">
+        <div class="mini">
+          <strong>動作条件</strong>
+          バッテリー残量が少ない場合や、モバイル環境では動作を制限または停止する想定です。
+        </div>
+        <div class="mini">
+          <strong>動作期間</strong>
+          このタブを表示している間のみ動作し、ページ離脱時は停止する想定です。
+        </div>
+        <div class="mini">
+          <strong>停止方法</strong>
+          画面上の停止ボタン、またはページを閉じることで停止できます。
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="agreeBtn" type="button">同意して利用する</button>
+        <button class="secondary" id="declineBtn" type="button">同意しない</button>
+      </div>
+
+      <div class="status" id="statusBox" role="status" aria-live="polite">
+        現在、マイニングは開始されていません。内容を確認し、利用する場合のみ同意してください。
+      </div>
+
+      <p class="footer-note">
+        ※ このサンプルは「同意説明の UI 例」です。実際に公開する場合は、実際の挙動と一致する説明、
+        利用規約・プライバシー通知との整合、停止条件、対象端末条件などを明確にしてください。
+      </p>
+    </section>
+
+    <section class="site" id="siteArea">
+      <div class="card">
+        <h2>サイト本文エリア</h2>
+        <p class="muted">
+          同意後に表示されるコンテンツ例です。実際のサイト本文や機能をここに配置してください。
+        </p>
+
+        <div class="toolbar">
+          <button class="danger" id="stopBtn" type="button">マイニングを停止する</button>
+          <button class="secondary" id="withdrawBtn" type="button">同意を取り消す</button>
+        </div>
+
+        <div class="site-content">
+          <p>
+            このサンプルでは、実際のマイニング処理は行っていません。<br />
+            代わりに、同意済み・停止済みの状態が画面表示で分かるようにしています。
+          </p>
+          <p>
+            詳細説明ページへの導線を置く場合は、
+            <a href="#" onclick="return false;">利用条件</a>
+            や
+            <a href="#" onclick="return false;">プライバシー通知</a>
+            をここに配置できます。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const agreeBtn = document.getElementById('agreeBtn');
+    const declineBtn = document.getElementById('declineBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const withdrawBtn = document.getElementById('withdrawBtn');
+    const statusBox = document.getElementById('statusBox');
+    const sessionState = document.getElementById('sessionState');
+    const siteArea = document.getElementById('siteArea');
+
+    let consented = false;
+    let miningActive = false;
+
+    function renderStatus() {
+      if (!consented) {
+        sessionState.textContent = '状態: 未同意';
+        statusBox.innerHTML = '現在、マイニングは開始されていません。内容を確認し、利用する場合のみ同意してください。';
+        siteArea.classList.remove('visible');
+        return;
+      }
+
+      siteArea.classList.add('visible');
+
+      if (miningActive) {
+        sessionState.textContent = '状態: 同意済み / 動作中';
+        statusBox.innerHTML = '<strong>同意を確認しました。</strong> このサンプルでは実際のマイニング処理は行っていませんが、実運用ではここで開始状態を表示します。';
+      } else {
+        sessionState.textContent = '状態: 同意済み / 停止中';
+        statusBox.innerHTML = '同意済みですが、現在は停止中です。必要に応じて再開ボタンを追加してください。';
+      }
+    }
+
+    agreeBtn.addEventListener('click', () => {
+      consented = true;
+      miningActive = true;
+      renderStatus();
+    });
+
+    declineBtn.addEventListener('click', () => {
+      consented = false;
+      miningActive = false;
+      renderStatus();
+      alert('同意しない設定のため、マイニングは開始されません。');
+    });
+
+    stopBtn.addEventListener('click', () => {
+      miningActive = false;
+      renderStatus();
+    });
+
+    withdrawBtn.addEventListener('click', () => {
+      consented = false;
+      miningActive = false;
+      renderStatus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && miningActive) {
+        miningActive = false;
+        renderStatus();
+      }
+    });
+
+    renderStatus();
+  </script>
+</body>
+</html>
